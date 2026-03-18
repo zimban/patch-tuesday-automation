@@ -41,7 +41,7 @@ def get_latest_tahoe_version(soup):
     if idx < 0:
         return None
     segment = text[idx:idx+200]
-    versions = re.findall(r"(26\.\d+(?:\.\d+)?)", segment)
+    versions = re.findall(r"(26\.\d+(?:\.\d+)?)(?!\d)", segment)
     return versions[0] if versions else None
 
 
@@ -55,7 +55,7 @@ def get_release_history(soup, version_pattern, limit=5):
     versions = []
     for line in text.splitlines():
         line = line.strip()
-        m = re.search(version_pattern, line)
+        m = re.search(version_pattern + r"(?!\d)", line)
         if m:
             # Skip device-specific lines (e.g. "26.3.2 (MacBook Neo only)")
             if "only" in line.lower() or "MacBook Neo" in line:
