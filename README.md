@@ -41,7 +41,6 @@ State is persisted in `state.json` (committed back to this repo after each ticke
 | Issue type | Hotfixes | Hotfixes |
 | Priority | Normal | Normal |
 | Labels | `SLA-Exclusion`, `TVM-Corp` | `SLA-Exclusion`, `TVM-Corp` |
-| Assignee | Florenc Malaj | Pavel Ivanov |
 | Component | Alerting for Patching | Alerting for Patching |
 
 ## Reference sources
