@@ -8,13 +8,13 @@ Automatically creates Jira Hotfix tickets in the UiPath IT project after Microso
 - Runs on the **second Wednesday of each month** (day after Patch Tuesday)
 - Fetches the latest B-type builds from Microsoft's release health pages
 - Applies the **N-1 rule**: uses the previous month's B-release as the minimum compliant version
-- Creates a Jira ticket assigned to **Florenc Malaj** with Intune configuration guidance
+- Creates a Jira ticket assigned with Intune configuration guidance
 
 ### macOS Target Versions
 - Runs **daily** and checks Apple's release page for a new macOS version
 - Triggers a ticket only when a **new version is detected** (no fixed schedule)
 - Applies the N-1 rule per active macOS version
-- Creates a Jira ticket assigned to **Pavel Ivanov** with Jamf configuration guidance
+- Creates a Jira ticket with Jamf configuration guidance
 
 ## How it works
 
