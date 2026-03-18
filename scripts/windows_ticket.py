@@ -178,7 +178,7 @@ def run():
         print(f"Today ({today}) is not the second Wednesday. Skipping Windows ticket.")
         return None
 
-    state_path = "state.json"
+    state_path = "../state.json"
     with open(state_path) as f:
         state = json.load(f)
 
@@ -221,7 +221,7 @@ def run():
     print(f"Created: {key}")
 
     state["windows_last_created_month"] = current_month
-    with open(state_path, "w") as f:
+    with open("../state.json", "w") as f:
         json.dump(state, f, indent=2)
 
     return key

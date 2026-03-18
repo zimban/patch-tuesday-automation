@@ -108,7 +108,7 @@ def build_description(version_data):
 
 
 def run():
-    state_path = "state.json"
+    state_path = "../state.json"
     with open(state_path) as f:
         state = json.load(f)
 
@@ -157,7 +157,7 @@ def run():
     print(f"Created: {key}")
 
     state["macos_last_version"] = latest_tahoe
-    with open(state_path, "w") as f:
+    with open("../state.json", "w") as f:
         json.dump(state, f, indent=2)
 
     return key
