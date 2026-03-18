@@ -35,32 +35,49 @@ def fetch_page(url):
 
 
 def get_latest_tahoe_version(soup):
-    """Extract the latest general macOS Tahoe version from the Apple 'latest versions' page."""
-    text = soup.get_text()
-    idx = text.find("macOS Tahoe")
-    if idx < 0:
-        return None
-    segment = text[idx:idx+200]
-    versions = re.findall(r"(26\.\d+(?:\.\d+)?)(?!\d)", segment)
-    return versions[0] if versions else None
+    """Extract the latest general macOS Tahoe version from the Apple 'latest versions' page.
+    Uses line-by-line matching so version numbers in their own HTML elements match exactly.
+    """
+    text = soup.get_text("\n")
+    in_tahoe_section = False
+    for line in text.splitlines():
+        line = line.strip()
+        if "macOS Tahoe" in line:
+            in_tahoe_section = True
+        if in_tahoe_section:
+            # Match a line that IS exactly a version number (nothing else)
+            m = re.match(r"^(26\.\d{1,3}(?:\.\d{1,3})?)$", line)
+            if m:
+                return m.group(1)
+            # Also accept lines like "Version 26.3.1" or "26.3.1 " with surrounding text
+            # but only when it's the first version we see after the Tahoe header
+            m = re.search(r"\b(26\.\d{1,3}(?:\.\d{1,3})?)\b", line)
+            if m and re.match(r"^[\d\s.\-–]+$", line):
+                return m.group(1)
+            # Stop looking if we've moved past Tahoe into a different section
+            if in_tahoe_section and re.search(r"macOS (Sequoia|Sonoma|Ventura)", line):
+                break
+    return None
 
 
 def get_release_history(soup, version_pattern, limit=5):
     """
     Extract the last N releases for a macOS version from the history page.
     Returns list of version strings, newest first.
-    Skips device-specific releases by excluding entries with '(' in the same line.
+    Uses full-line anchored match to avoid partial number collisions.
+    Skips device-specific releases by excluding entries with 'only' in the same line.
     """
     text = soup.get_text("\n")
     versions = []
+    anchored = r"^(" + version_pattern + r")$"
     for line in text.splitlines():
         line = line.strip()
-        m = re.search(version_pattern + r"(?!\d)", line)
+        m = re.match(anchored, line)
         if m:
             # Skip device-specific lines (e.g. "26.3.2 (MacBook Neo only)")
             if "only" in line.lower() or "MacBook Neo" in line:
                 continue
-            v = m.group(0)
+            v = m.group(1)
             if v not in versions:
                 versions.append(v)
         if len(versions) >= limit:
