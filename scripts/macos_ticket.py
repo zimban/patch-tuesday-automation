@@ -64,19 +64,21 @@ def get_release_history(soup, version_pattern, limit=5):
     """
     Extract the last N releases for a macOS version from the history page.
     Returns list of version strings, newest first.
-    Uses full-line anchored match to avoid partial number collisions.
-    Skips device-specific releases by excluding entries with 'only' in the same line.
+    Uses lookahead/lookbehind guards to avoid partial number collisions while
+    still matching versions embedded in lines like "macOS Tahoe 26.3.1".
+    Skips device-specific releases by excluding entries with 'only' or 'MacBook Neo'.
     """
     text = soup.get_text("\n")
     versions = []
-    anchored = r"^(" + version_pattern + r")$"
+    # (?<![.\d]) and (?![.\d]) prevent matching digits that are part of a longer number
+    guarded = re.compile(r"(?<![.\d])(" + version_pattern + r")(?![.\d])")
     for line in text.splitlines():
         line = line.strip()
-        m = re.match(anchored, line)
+        # Skip device-specific lines (e.g. "macOS Tahoe 26.3.2  MacBook Neo  10 Mar 2026")
+        if "only" in line.lower() or "MacBook Neo" in line:
+            continue
+        m = guarded.search(line)
         if m:
-            # Skip device-specific lines (e.g. "26.3.2 (MacBook Neo only)")
-            if "only" in line.lower() or "MacBook Neo" in line:
-                continue
             v = m.group(1)
             if v not in versions:
                 versions.append(v)
