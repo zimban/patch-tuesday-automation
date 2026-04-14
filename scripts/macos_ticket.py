@@ -60,13 +60,15 @@ def get_latest_tahoe_version(soup):
     return None
 
 
-def get_release_history(soup, version_pattern, limit=5):
+def get_release_history(soup, version_pattern, required_keyword=None, limit=5):
     """
     Extract the last N releases for a macOS version from the history page.
     Returns list of version strings, newest first.
     Uses lookahead/lookbehind guards to avoid partial number collisions while
     still matching versions embedded in lines like "macOS Tahoe 26.3.1".
     Skips device-specific releases by excluding entries with 'only' or 'MacBook Neo'.
+    required_keyword: if set, only considers lines containing this string (e.g. "macOS Sequoia")
+    to avoid false matches from iOS/iPadOS entries that share the same version number pattern.
     """
     text = soup.get_text("\n")
     versions = []
@@ -76,6 +78,9 @@ def get_release_history(soup, version_pattern, limit=5):
         line = line.strip()
         # Skip device-specific lines (e.g. "macOS Tahoe 26.3.2  MacBook Neo  10 Mar 2026")
         if "only" in line.lower() or "MacBook Neo" in line:
+            continue
+        # Skip lines that don't belong to the target OS (avoids e.g. iOS 15.x matching Sequoia pattern)
+        if required_keyword and required_keyword not in line:
             continue
         m = guarded.search(line)
         if m:
@@ -154,7 +159,7 @@ def run():
         if blocked:
             version_data.append((display_name, None, True))
             continue
-        history = get_release_history(soup_history, pattern)
+        history = get_release_history(soup_history, pattern, required_keyword=display_name)
         n1 = get_n_minus_1(history)
         if n1:
             print(f"  {display_name}: N-1 = {n1}")

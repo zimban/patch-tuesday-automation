@@ -1,13 +1,13 @@
 """
 Creates the monthly Windows 10/11 Target Versions Jira ticket.
-Triggered on the second Wednesday of the month (day after Patch Tuesday).
+Triggered the day after Patch Tuesday (second Tuesday of the month).
 N-1 rule: N = current month's B-release; N-1 = previous month's B-release.
 """
 import re
 import sys
 import json
 import requests
-from datetime import date
+from datetime import date, timedelta
 from bs4 import BeautifulSoup
 from jira_client import (
     create_issue, _adf_doc, _adf_paragraph, _adf_text, _adf_link, _adf_bullet_list
@@ -34,14 +34,15 @@ WIN10_EOS_VERSIONS = ["22H2"]
 WIN10_LTSC_VERSION = "21H2"  # LTSC — still supported
 
 
-def is_second_wednesday(today=None):
+def is_day_after_patch_tuesday(today=None):
+    """Returns True if today is the day after Patch Tuesday (second Tuesday of the month).
+    More reliable than 'second Wednesday' because when a month starts on Wednesday,
+    the second Wednesday falls before the second Tuesday."""
     today = today or date.today()
-    if today.weekday() != 2:  # Wednesday = 2
-        return False
     first_day = today.replace(day=1)
-    days_to_first_wed = (2 - first_day.weekday()) % 7
-    first_wed_day = 1 + days_to_first_wed
-    return today.day == first_wed_day + 7
+    days_to_first_tue = (1 - first_day.weekday()) % 7  # Tuesday = weekday 1
+    patch_tuesday = first_day.replace(day=1 + days_to_first_tue + 7)
+    return today == patch_tuesday + timedelta(days=1)
 
 
 def fetch_page(url):
@@ -174,8 +175,8 @@ def build_description(win11_data, win10_ltsc_data):
 def run():
     today = date.today()
 
-    if not is_second_wednesday(today):
-        print(f"Today ({today}) is not the second Wednesday. Skipping Windows ticket.")
+    if not is_day_after_patch_tuesday(today):
+        print(f"Today ({today}) is not the day after Patch Tuesday. Skipping Windows ticket.")
         return None
 
     state_path = "../state.json"
@@ -229,4 +230,4 @@ def run():
 
 if __name__ == "__main__":
     result = run()
-    sys.exit(0 if result is not None or not is_second_wednesday() else 1)
+    sys.exit(0 if result is not None or not is_day_after_patch_tuesday() else 1)
