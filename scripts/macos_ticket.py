@@ -1,6 +1,6 @@
 """
 Creates the macOS Target Versions Jira ticket when Apple releases a new macOS version.
-Checks Apple's release page daily; triggers when the latest Tahoe version changes.
+Checks Apple's release page daily; triggers when the latest Tahoe or Sequoia version changes.
 N-1 rule: N = most recent general release; N-1 = the release before that.
 """
 import re
@@ -34,28 +34,23 @@ def fetch_page(url):
     return BeautifulSoup(resp.text, "lxml")
 
 
-def get_latest_tahoe_version(soup):
-    """Extract the latest general macOS Tahoe version from the Apple 'latest versions' page.
-    Uses line-by-line matching so version numbers in their own HTML elements match exactly.
-    """
-    text = soup.get_text("\n")
-    in_tahoe_section = False
+def get_latest_macos_version(soup, name, pattern, stop_pattern=None):
+    """Extract the latest version for a named macOS from Apple's 'latest versions' page."""
+    text = soup.get_text("
+")
+    in_section = False
     for line in text.splitlines():
         line = line.strip()
-        if "macOS Tahoe" in line:
-            in_tahoe_section = True
-        if in_tahoe_section:
-            # Match a line that IS exactly a version number (nothing else)
-            m = re.match(r"^(26\.\d{1,3}(?:\.\d{1,3})?)$", line)
+        if name in line:
+            in_section = True
+        if in_section:
+            m = re.match(r"^(" + pattern + r")$", line)
             if m:
                 return m.group(1)
-            # Also accept lines like "Version 26.3.1" or "26.3.1 " with surrounding text
-            # but only when it's the first version we see after the Tahoe header
-            m = re.search(r"\b(26\.\d{1,3}(?:\.\d{1,3})?)\b", line)
+            m = re.search(r"(" + pattern + r")", line)
             if m and re.match(r"^[\d\s.\-–]+$", line):
                 return m.group(1)
-            # Stop looking if we've moved past Tahoe into a different section
-            if in_tahoe_section and re.search(r"macOS (Sequoia|Sonoma|Ventura)", line):
+            if stop_pattern and name not in line and re.search(stop_pattern, line):
                 break
     return None
 
@@ -70,7 +65,8 @@ def get_release_history(soup, version_pattern, required_keyword=None, limit=5):
     required_keyword: if set, only considers lines containing this string (e.g. "macOS Sequoia")
     to avoid false matches from iOS/iPadOS entries that share the same version number pattern.
     """
-    text = soup.get_text("\n")
+    text = soup.get_text("
+")
     versions = []
     # (?<![.\d]) and (?![.\d]) prevent matching digits that are part of a longer number
     guarded = re.compile(r"(?<![.\d])(" + version_pattern + r")(?![.\d])")
@@ -138,20 +134,40 @@ def run():
 
     print("Fetching Apple latest versions page...")
     soup_latest = fetch_page(APPLE_LATEST_URL)
-    latest_tahoe = get_latest_tahoe_version(soup_latest)
+
+    latest_tahoe = get_latest_macos_version(
+        soup_latest, "macOS Tahoe", r"26\.\d{1,3}(?:\.\d{1,3})?",
+        stop_pattern=r"macOS (Sequoia|Sonoma|Ventura)",
+    )
+    latest_sequoia = get_latest_macos_version(
+        soup_latest, "macOS Sequoia", r"15\.\d{1,3}(?:\.\d{1,3})?",
+        stop_pattern=r"macOS (Sonoma|Ventura|Monterey)",
+    )
 
     if not latest_tahoe:
         print("ERROR: Could not extract macOS Tahoe version. Aborting.")
         sys.exit(1)
+    if not latest_sequoia:
+        print("WARNING: Could not extract macOS Sequoia version.")
 
-    print(f"Latest macOS Tahoe on Apple page: {latest_tahoe}")
-    last_version = state.get("macos_last_version", "")
+    print(f"Latest macOS Tahoe: {latest_tahoe}, Sequoia: {latest_sequoia}")
 
-    if latest_tahoe == last_version:
-        print(f"macOS version unchanged ({latest_tahoe}). No ticket needed.")
+    last_tahoe = state.get("macos_last_version", "")
+    last_sequoia = state.get("macos_sequoia_last_version", "")
+
+    tahoe_changed = latest_tahoe != last_tahoe
+    sequoia_changed = latest_sequoia and latest_sequoia != last_sequoia
+
+    if not tahoe_changed and not sequoia_changed:
+        print(f"macOS versions unchanged. No ticket needed.")
         return None
 
-    print(f"Version changed: {last_version!r} -> {latest_tahoe!r}. Fetching release history...")
+    if tahoe_changed:
+        print(f"Tahoe changed: {last_tahoe!r} -> {latest_tahoe!r}")
+    if sequoia_changed:
+        print(f"Sequoia changed: {last_sequoia!r} -> {latest_sequoia!r}")
+
+    print("Fetching release history...")
     soup_history = fetch_page(APPLE_HISTORY_URL)
 
     version_data = []
@@ -181,6 +197,8 @@ def run():
     print(f"Created: {key}")
 
     state["macos_last_version"] = latest_tahoe
+    if latest_sequoia:
+        state["macos_sequoia_last_version"] = latest_sequoia
     with open("../state.json", "w") as f:
         json.dump(state, f, indent=2)
 
