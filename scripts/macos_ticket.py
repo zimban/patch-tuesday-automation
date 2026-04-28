@@ -36,8 +36,7 @@ def fetch_page(url):
 
 def get_latest_macos_version(soup, name, pattern, stop_pattern=None):
     """Extract the latest version for a named macOS from Apple's 'latest versions' page."""
-    text = soup.get_text("
-")
+    text = soup.get_text("\n")
     in_section = False
     for line in text.splitlines():
         line = line.strip()
@@ -47,7 +46,7 @@ def get_latest_macos_version(soup, name, pattern, stop_pattern=None):
             m = re.match(r"^(" + pattern + r")$", line)
             if m:
                 return m.group(1)
-            m = re.search(r"(" + pattern + r")", line)
+            m = re.search(r"\b(" + pattern + r")\b", line)
             if m and re.match(r"^[\d\s.\-–]+$", line):
                 return m.group(1)
             if stop_pattern and name not in line and re.search(stop_pattern, line):
@@ -65,8 +64,7 @@ def get_release_history(soup, version_pattern, required_keyword=None, limit=5):
     required_keyword: if set, only considers lines containing this string (e.g. "macOS Sequoia")
     to avoid false matches from iOS/iPadOS entries that share the same version number pattern.
     """
-    text = soup.get_text("
-")
+    text = soup.get_text("\n")
     versions = []
     # (?<![.\d]) and (?![.\d]) prevent matching digits that are part of a longer number
     guarded = re.compile(r"(?<![.\d])(" + version_pattern + r")(?![.\d])")
@@ -116,7 +114,7 @@ def build_description(version_data):
         else:
             items.append([
                 _adf_text(f"{display_name}: "),
-                _adf_text("⚠️ ", ),
+                _adf_text("⚠️ "),
                 _adf_text("N-1", bold=True),
                 _adf_text(f" version -> {n1_version} -> To be configured in Jamf"),
             ])
@@ -159,7 +157,7 @@ def run():
     sequoia_changed = latest_sequoia and latest_sequoia != last_sequoia
 
     if not tahoe_changed and not sequoia_changed:
-        print(f"macOS versions unchanged. No ticket needed.")
+        print("macOS versions unchanged. No ticket needed.")
         return None
 
     if tahoe_changed:
