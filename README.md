@@ -11,8 +11,8 @@ Automatically creates Jira Hotfix tickets in the UiPath IT project after Microso
 - Creates a Jira ticket assigned with Intune configuration guidance
 
 ### macOS Target Versions
-- Runs **daily** and checks Apple's release page for a new macOS version
-- Triggers a ticket only when a **new version is detected** (no fixed schedule)
+- Runs **daily** and checks Apple's release page for new macOS versions
+- Tracks **Tahoe and Sequoia independently** — triggers a ticket whenever either version changes
 - Applies the N-1 rule per active macOS version
 - Creates a Jira ticket with Jamf configuration guidance
 
@@ -27,8 +27,9 @@ GitHub Actions (daily 10:00 UTC)
         │
         └── macOS job (runs after Windows)
               ├── Fetch Apple latest versions page
-              ├── Compare with state.json → unchanged → skip
-              └── Changed → fetch release history → calculate N-1 → create Jira ticket
+              ├── Compare Tahoe + Sequoia against state.json
+              ├── Both unchanged → skip
+              └── Either changed → fetch release history → calculate N-1 → create Jira ticket
 ```
 
 State is persisted in `state.json` (committed back to this repo after each ticket creation) to prevent duplicate tickets.
@@ -75,7 +76,7 @@ The Jira email and instance URL are hardcoded in `scripts/jira_client.py`.
 │   ├── windows_ticket.py     # Windows N-1 logic + ticket creation
 │   └── macos_ticket.py       # macOS version detection + ticket creation
 ├── requirements.txt
-└── state.json                # Tracks last created month / last seen version
+└── state.json                # Tracks last created Windows month + last seen Tahoe and Sequoia versions
 ```
 
 ## Maintenance
